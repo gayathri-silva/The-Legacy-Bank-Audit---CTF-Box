@@ -1,142 +1,114 @@
- # The Legacy Bank Audit — CTF Play Box
+# THE LEGACY BANK AUDIT - CTF Play Box
 
-**SLIIT IE3132 Penetration Testing · Year 3, Semester 1 · 2026 · Group 78**
+## SLIIT IE3132 Penetration Testing (Year 3, Semester 1 - 2026)
 
-The Legacy Bank Audit is a Docker-based Capture The Flag (CTF) lab that simulates an authorized red-team assessment of a fictional bank's forgotten staging environment. Players work through six connected challenges covering reconnaissance, web security, cryptography, authentication, Linux enumeration, and privilege escalation.
- 
-## Learning path
+**Assignment 01 - Group 78**
 
-The challenge sequence follows **Discover → Access → Decode → Authenticate → Enumerate → Escalate**.
+---
 
-| Stage | Challenge | Topic | Goal |
-|---|---|---|---|
-| 1 | The Forgotten Server | Networking and reconnaissance | Discover the legacy staging service and its clues. |
-| 2 | The Legacy Employee Portal | Web application security | Identify the unsafe login behavior and retrieve the stage flag. |
-| 3 | The Encoded Credentials | Encoding and classical cryptography | Recover credentials protected by multiple reversible layers. |
-| 4 | The Broken Second Factor | Authentication | Analyze and reproduce a predictable legacy second-factor calculation. |
-| 5 | Inside the Legacy Server | Linux and system enumeration | Connect to the lab server and inspect scheduled tasks and permissions. |
-| 6 | The Root Scheduler | Linux privilege escalation | Demonstrate the impact of a misconfigured scheduled task in the isolated lab. |
+## 1. Project Overview
 
-## Technology stack
+"THE LEGACY BANK AUDIT" is a Docker-based Capture The Flag (CTF) Play Box environment simulating an authorized red-team security assessment of an old financial staging server left exposed during a cloud migration.
 
-- Python and Flask for the dashboard and web challenge
-- SQLite for dashboard and challenge data
-- Docker and Docker Compose for repeatable, isolated services
-- Linux, OpenSSH, cron, `nmap`, and `curl` for the lab exercises
-- HTML, CSS, and JavaScript for the web interfaces
+The architecture strictly follows security isolation principles:
 
-## Architecture and local ports
+- **Control Layer (`dashboard`)**: The single entry point exposed to the host machine.
+- **Challenge Targets (`web_challenge` & `linux_challenge`)**: Isolated on a private Docker bridge network (`ctf_isolated_net`) with no public internet access or direct host port exposures.
 
-| Component | Purpose | Local access |
-|---|---|---|
-| `dashboard` | CTF instructions, stage progression, hints, and scoring | `http://localhost:5001` |
-| `web_challenge` | Intentionally vulnerable employee portal | `http://127.0.0.1:8082` (bound to localhost) |
-| `kali_player` | Container with network tools for Stage 1 | Open a shell with `docker compose exec kali_player bash` |
-| `linux_challenge` | Isolated Linux/SSH target for later stages | No host port is published; access it from the lab network |
+---
 
-The Compose project creates an internal `ctf_isolated_net` network for the lab. The web challenge is also attached to the dashboard ingress network and its host port is bound to loopback (`127.0.0.1`) for local testing. This reduces accidental exposure, but it does **not** make the intentionally vulnerable application suitable for public deployment.
+## 2. Architecture & Service Components
 
-## Prerequisites
+| Service Name          | Description                            | Host Access             | Internal IP   | Container Port | Health Check         |
+| :-------------------- | :------------------------------------- | :---------------------- | :------------ | :------------- | :------------------- |
+| **`dashboard`**       | CTF Control Layer & Dashboard          | Port `5000`             | `10.10.10.2`  | `5000`         | HTTP `/health`       |
+| **`dashboard`**       | CTF Control Layer & Dashboard          | Port `5001`             | `10.10.10.2`  | `80`           | HTTP `/health`       |
+| **`kali_player`**     | Stage 1 network tools (`nmap`, `curl`) | Isolated                | `10.10.10.3`  | N/A            | Persistent shell     |
+| **`web_challenge`**   | Legacy Employee Portal Target          | Isolated (No Host Port) | `10.10.10.5`  | `8080`         | HTTP `/health`       |
+| **`linux_challenge`** | Legacy Linux Server Target             | Isolated (No Host Port) | `10.10.10.10` | `22`           | `/tmp/healthy` check |
 
-- Docker Desktop running with Linux containers enabled (Windows), or Docker Engine on Linux/macOS
-- Docker Compose v2 (`docker compose`)
-- Git, if cloning the repository
-- Python 3.10+ only if you want to run the Python unit tests outside Docker
+---
 
-## Run locally
+## 3. Security & Isolation Constraints
 
-1. Clone the repository or open the project directory containing `docker-compose.yml`.
-2. Create a local environment file from the example.
+- **Private Docker Network**: Uses `ctf_isolated_net` (`10.10.10.0/24`) with `internal: true`.
+- **Zero Privilege Escalation to Host**: Containers do **not** run in privileged mode (`privileged: false`).
+- **No Host Mounts**: No host filesystems or Docker sockets (`/var/run/docker.sock`) are mounted.
+- **Minimal Exposure**: Only the `dashboard` control layer port (`5000`) is mapped to the host interface.
+- **Non-Root Containers**: Web and Dashboard containers execute as non-root unprivileged users (`ctfuser`).
+- **Windows Compatibility**: Tested and optimized for Windows Docker Desktop (Linux Containers mode).
 
-   **PowerShell:**
-   ```powershell
-   Copy-Item .env.example .env
-   notepad .env
-   ```
+---
 
-   Replace the placeholder secret values and set a local team username and password before the first start. To generate a secret in PowerShell, run this command twice and use different outputs:
+## 4. Deployment & Quick Start Guide
 
-   ```powershell
-   python -c "import secrets; print(secrets.token_hex(32))"
-   ```
+### Prerequisites
 
-   **macOS/Linux:**
+- **Docker Desktop** installed on Windows (with Linux Containers backend enabled).
+- **Docker Compose** v2+ enabled.
+
+### Step-by-step Setup Instructions
+
+1. **Clone or navigate to the repository directory**:
+
    ```bash
-   cp .env.example .env
-   nano .env
+   cd legacy-bank-ctf
    ```
 
-3. Build and start the services:
+2. **Initialize Environment Variables**:
+   Copy the example environment file:
+
+   ```cmd
+   copy .env.example .env
+   ```
+
+   _(On PowerShell or Bash: `cp .env.example .env`)_
+
+3. **Build and Launch Containers**:
+
    ```bash
    docker compose up -d --build
    ```
-4. Check container status:
+
+4. **Verify Service Health & Status**:
+   Check container status and health check status:
+
    ```bash
    docker compose ps
    ```
-5. Open `http://localhost:5001` in your browser and sign in using the team credentials configured in `.env`.
-6. For Stage 1 network tools, open the player container shell:
+
+5. **Access the CTF Control Dashboard**:
+   Open your browser and navigate to:
+   [http://localhost:5001](http://localhost:5001)
+
+6. **Use the Stage 1 network tools**:
+   Open the bundled player shell from a terminal:
    ```bash
    docker compose exec kali_player bash
    ```
+   The player container stays running with the Compose stack and includes `nmap` and `curl`.
 
-Do not commit `.env`. It contains local secrets and is excluded by `.gitignore`.
+---
 
-## Health checks and useful commands
+## 5. Basic Health Verification Commands
 
-Check the dashboard from PowerShell:
+- **Check Dashboard Endpoint (Host)**:
 
-```powershell
-Invoke-RestMethod http://localhost:5001/health
-Invoke-RestMethod http://127.0.0.1:8082/health
-```
+  ```bash
+  curl http://localhost:5000/health
+  ```
 
-View service logs:
+  _Expected Output_: `{"service":"dashboard","status":"healthy"}`
 
-```bash
-docker compose logs dashboard
-docker compose logs web_challenge
-docker compose logs linux_challenge
-```
+- **Inspect Container Logs**:
 
-Stop the services without deleting saved dashboard progress:
+  ```bash
+  docker compose logs dashboard
+  docker compose logs web_challenge
+  docker compose logs linux_challenge
+  ```
 
-```bash
-docker compose down
-```
-
-**Data warning:** `docker compose down -v` also removes the persistent dashboard volume, including stored teams, scores, and progress. Use it only when you intentionally want to erase that data.
-
-## Run automated tests
-
-From the project root, using PowerShell:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r dashboard\requirements.txt
-python -m unittest discover -s tests -v
-```
-
-See [`docs/testing.md`](docs/testing.md) for the current test scope and manual validation checklist. Do not describe the whole six-stage CTF as fully tested unless you have run and recorded an end-to-end validation yourself.
-
-## Repository layout
-
-```text
-legacy-bank-ctf/
-├── dashboard/       # Flask control dashboard, templates, and seeding
-├── web/             # Employee portal challenge
-├── linux/           # Linux challenge container configuration
-├── player/          # Player tools container
-├── flags/           # Stage flag files (keep the repository private)
-├── tests/           # Automated unit tests
-├── docs/            # Architecture, deployment, security, and testing notes
-├── scripts/         # PowerShell helper scripts
-├── docker-compose.yml
-├── .env.example     # Safe template; copy to .env and replace placeholders
-└── README.md
-```
-
-## Individual contribution — Member 4
-
-My assigned role was **Integration, Testing & Documentation**. My contribution focused on integration and validation planning across the six-stage flow, reviewing dependencies and risks, documenting test cases and results, considering reset/recovery behavior, and helping assemble the final report. Update this section if your final submitted contribution record differs.
+- **Stop & Clean Up**:
+  ```bash
+  docker compose down
+  ```
