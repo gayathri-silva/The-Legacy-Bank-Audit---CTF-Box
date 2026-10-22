@@ -3,10 +3,7 @@
 **SLIIT IE3132 Penetration Testing · Year 3, Semester 1 · 2026 · Group 78**
 
 The Legacy Bank Audit is a Docker-based Capture The Flag (CTF) lab that simulates an authorized red-team assessment of a fictional bank's forgotten staging environment. Players work through six connected challenges covering reconnaissance, web security, cryptography, authentication, Linux enumeration, and privilege escalation.
-
-> [!CAUTION]
-> This is an **intentionally vulnerable educational lab**. Run it only on a machine and network you control. Do not deploy it to a public server or use its techniques against systems without explicit authorization. The repository includes challenge flags and solution clues in its source, so keep it **private** unless your lecturer and all group members approve public release.
-
+ 
 ## Learning path
 
 The challenge sequence follows **Discover → Access → Decode → Authenticate → Enumerate → Escalate**.
